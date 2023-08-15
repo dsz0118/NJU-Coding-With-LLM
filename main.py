@@ -14,7 +14,6 @@ HEIGHT = 600
 
 # 颜色定义
 WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
 
 # 创建游戏窗口
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -72,51 +71,54 @@ while running:
             player.move_right()
 
         # 控制子弹发射
-        if keys[pygame.K_SPACE]:
+        if keys[pygame.K_SPACE] and not player.bullets_paused:
             player.shoot(bullets)
-
-        # 移动子弹
-        for bullet in bullets:
-            if bullet.move():
-                bullets.remove(bullet)
 
         # 生成敌机
         enemy = Enemy.spawn()
-        if enemy:
+        if enemy and not player.enemies_paused:
             enemies.append(enemy)
 
-        # 移动子弹
-        for bullet in bullets:
-            bullet.move()
-            if bullet.rect.y < 0:
-                bullets.remove(bullet)
+        # # 碰撞检测
+        # for enemy in enemies:
+        #     # # 检查撞毁动画是否播放完毕
+        #     # if player.destroyed and player.destroy_animation_finished:
+        #     #     running = False  # 结束游戏
+        #     for bullet in bullets:
+        #         if bullet.rect.colliderect(enemy.rect):
+        #             enemies.remove(enemy)
+        #             bullets.remove(bullet)
 
-        # 移动敌机
-        for enemy in enemies:
-            enemy.move()
-            if enemy.rect.y > HEIGHT:
-                enemies.remove(enemy)
-
-        # 碰撞检测
-        for enemy in enemies:
-            if player.rect.colliderect(enemy.rect):
-                running = False
-            for bullet in bullets:
-                if bullet.rect.colliderect(enemy.rect):
-                    enemies.remove(enemy)
-                    bullets.remove(bullet)
-
-    # 绘 制游戏元素
+    # 绘制游戏元素
     screen.fill(WHITE)
 
     if paused:
         screen.blit(pause_image, pause_rect)
+    else:
+        player.update()
+        player.draw(screen)
 
-    screen.blit(player.image, player.rect)
-    for bullet in bullets:
-        screen.blit(bullet.image, bullet.rect)
-    for enemy in enemies:
-        screen.blit(enemy.image, enemy.rect)
+        # 移动子弹
+        for bullet in bullets:
+            if not player.bullets_paused:
+                bullet.move()
+            if bullet.rect.y < 0:
+                bullets.remove(bullet)
+            screen.blit(bullet.image, bullet.rect)
+
+        # 移动敌机
+        for enemy in enemies:
+            if not player.enemies_paused:
+                enemy.move()
+            if enemy.rect.y > HEIGHT:
+                enemies.remove(enemy)
+            screen.blit(enemy.image, enemy.rect)
+
+        player.collide_with_enemy(enemies)  # 检测碰撞
+
+        # 检查飞机是否被摧毁
+        if player.is_destroyed():
+            running = False  # 结束游戏
 
     # 刷新画面
     pygame.display.flip()
