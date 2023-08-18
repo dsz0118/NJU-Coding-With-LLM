@@ -20,6 +20,20 @@ class Player:
         self.destroy_animation = None
         self.bullets_paused = False  # 添加属性用于暂停子弹
         self.enemies_paused = False  # 添加属性用于暂停敌方飞机
+        self.score = 0  # 添加 score 属性并初始化为零
+
+        # 子弹发射间隔（毫秒）
+        self.bullet_delay = 300
+        self.last_bullet_time = 0
+
+    def restart_game(self):
+        self.speed = 5
+        self.bullets = []
+        self.destroyed = False
+        self.destroy_animation = None
+        self.bullets_paused = False
+        self.enemies_paused = False
+        self.score = 0
 
         # 子弹发射间隔（毫秒）
         self.bullet_delay = 300
@@ -82,6 +96,12 @@ class Player:
 
     def move_right(self):
         self.rect.x += 5
+
+    def move_up(self):
+        self.rect.y -= 5
+
+    def move_down(self):
+        self.rect.y += 5
 
     def shoot(self, bullets):
         current_time = pygame.time.get_ticks()  # 获取当前时间（毫秒）

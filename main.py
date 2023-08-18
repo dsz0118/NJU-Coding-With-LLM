@@ -4,9 +4,11 @@ from player.Player import Player
 from bullet.Bullet import Bullet
 from enemy.Enemy import Enemy
 
-
 # 初始化
 pygame.init()
+
+# 加载字体
+font = pygame.font.Font(None, 36)
 
 # 游戏窗口大小
 WIDTH = 800
@@ -24,14 +26,12 @@ pause_image = pygame.image.load("images/pause_nor.png")
 pause_rect = pause_image.get_rect()
 pause_rect.center = (WIDTH // 2, HEIGHT // 2)
 
-
 # 创建玩家对象
 player = Player(WIDTH // 2, HEIGHT - 10)
 
 # 创建子弹和敌机列表
 bullets = []
 enemies = []
-
 
 # 游戏时钟
 clock = pygame.time.Clock()
@@ -41,7 +41,6 @@ paused = False
 
 # 主游戏循环
 running = True
-
 
 while running:
 
@@ -63,38 +62,61 @@ while running:
 
     # 未暂停
     if not paused:
-        # 控制飞机移动
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_LEFT]:
-            player.move_left()
-        if keys[pygame.K_RIGHT]:
-            player.move_right()
 
-        # 控制子弹发射
-        if keys[pygame.K_SPACE] and not player.bullets_paused:
-            player.shoot(bullets)
+        # 检查飞机是否被摧毁
+        if player.is_destroyed():
 
-        # 生成敌机
-        enemy = Enemy.spawn()
-        if enemy and not player.enemies_paused:
-            enemies.append(enemy)
+            restart_image = pygame.image.load("images/again.png")
+            restart_rect = restart_image.get_rect()
+            restart_rect.center = (WIDTH // 2, HEIGHT // 2)
+            screen.blit(restart_image, restart_rect)
+            pygame.display.flip()  # 刷新画面以显示飞机坠毁的画面
 
-        # # 碰撞检测
-        # for enemy in enemies:
-        #     # # 检查撞毁动画是否播放完毕
-        #     # if player.destroyed and player.destroy_animation_finished:
-        #     #     running = False  # 结束游戏
-        #     for bullet in bullets:
-        #         if bullet.rect.colliderect(enemy.rect):
-        #             enemies.remove(enemy)
-        #             bullets.remove(bullet)
+            restart = False
+            while not restart:
+                for event in pygame.event.get():
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_ESCAPE:
+                            running = False
+                            restart = True
+                        else:
+                            # 重新开始游戏
+                            player.restart_game()
+                            bullets = []
+                            enemies = []
+                            restart = True
 
-    # 绘制游戏元素
-    screen.fill(WHITE)
+        else:
+            # 控制飞机移动
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_LEFT]:
+                player.move_left()
+            if keys[pygame.K_RIGHT]:
+                player.move_right()
+            if keys[pygame.K_UP]:
+                player.move_up()
+            if keys[pygame.K_DOWN]:
+                player.move_down()
 
-    if paused:
-        screen.blit(pause_image, pause_rect)
-    else:
+            # 控制子弹发射
+            if keys[pygame.K_SPACE] and not player.bullets_paused:
+                player.shoot(bullets)
+
+            # 生成敌机
+            enemy = Enemy.spawn()
+            if enemy and not player.enemies_paused:
+                enemies.append(enemy)
+
+            # 碰撞检测与操作
+            for bullet in bullets:
+                for enemy in enemies:
+                    if bullet.rect.colliderect(enemy.rect):
+                        enemies.remove(enemy)
+                        bullets.remove(bullet)
+                        player.score += 10  # 增加分数
+
+        # 绘制游戏元素
+        screen.fill(WHITE)
         player.update()
         player.draw(screen)
 
@@ -116,9 +138,12 @@ while running:
 
         player.collide_with_enemy(enemies)  # 检测碰撞
 
-        # 检查飞机是否被摧毁
-        if player.is_destroyed():
-            running = False  # 结束游戏
+    else:
+        screen.blit(pause_image, pause_rect)
+
+    # 绘制分数文本
+    score_text = font.render(f"Score: {player.score}", True, (0, 0, 0))
+    screen.blit(score_text, (WIDTH // 2 - score_text.get_width() // 2, 10))  # 在居中顶部显示分数
 
     # 刷新画面
     pygame.display.flip()
