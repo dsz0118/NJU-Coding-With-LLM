@@ -1,11 +1,12 @@
 import pygame
 from bullet.Bullet import Bullet
 from animation.Animation import PlaneDestroyAnimation
+from constants import BASE_ENEMY_SHOOT_RATE, BASE_ENEMY_SPAWN_RATE
 
 class Player:
     def __init__(self, x, y):
         # 初始化飞机属性
-        self.image = pygame.image.load("images/me1.png")
+        self.image = pygame.image.load("images/me1.png").convert_alpha()
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
         self.destroy_images = [pygame.image.load("images/me_destroy_1.png"),
@@ -21,22 +22,10 @@ class Player:
         self.bullets_paused = False  # 添加属性用于暂停子弹
         self.enemies_paused = False  # 添加属性用于暂停敌方飞机
         self.score = 0  # 添加 score 属性并初始化为零
-
+        self.type = "player"
+        self.mask = pygame.mask.from_surface(self.image)
         # 子弹发射间隔（毫秒）
-        self.bullet_delay = 300
-        self.last_bullet_time = 0
-
-    def restart_game(self):
-        self.speed = 5
-        self.bullets = []
-        self.destroyed = False
-        self.destroy_animation = None
-        self.bullets_paused = False
-        self.enemies_paused = False
-        self.score = 0
-
-        # 子弹发射间隔（毫秒）
-        self.bullet_delay = 300
+        self.bullet_delay = 150
         self.last_bullet_time = 0
 
     def update(self):
@@ -63,10 +52,6 @@ class Player:
         if not self.destroyed:
             screen.blit(self.image, self.rect)
 
-        # 绘制子弹
-        for bullet in self.bullets:
-            screen.blit(bullet.image, bullet.rect)
-
         # 绘制撞毁动画
         if self.destroyed and self.destroy_animation:
             screen.blit(self.destroy_animation.image, self.destroy_animation.rect)
@@ -74,7 +59,18 @@ class Player:
     def collide_with_enemy(self, enemies):
         if not self.destroyed:
             for enemy in enemies:
-                if self.rect.colliderect(enemy.rect):
+                offset = (enemy.rect.x - self.rect.x, enemy.rect.y - self.rect.y)
+                if self.mask.overlap(enemy.mask, offset):
+                    self.destroyed = True
+                    self.destroy_animation = PlaneDestroyAnimation(self.rect.centerx, self.rect.centery, self.destroy_images)
+                    self.pause_bullets_and_enemies()
+                    return  # 退出碰撞检测
+
+    def collide_with_bullet(self, bullets):
+        if not self.destroyed:
+            for bullet in bullets:
+                offset = (bullet.rect.x - self.rect.x, bullet.rect.y - self.rect.y)
+                if self.mask.overlap(bullet.mask, offset):
                     self.destroyed = True
                     self.destroy_animation = PlaneDestroyAnimation(self.rect.centerx, self.rect.centery, self.destroy_images)
                     self.pause_bullets_and_enemies()
@@ -106,6 +102,24 @@ class Player:
     def shoot(self, bullets):
         current_time = pygame.time.get_ticks()  # 获取当前时间（毫秒）
         if current_time - self.last_bullet_time > self.bullet_delay:
-            bullet = Bullet(self.rect.centerx, self.rect.top)
+            bullet = Bullet(self.rect.centerx, self.rect.top, (0, 0, 255), self.type)
             bullets.append(bullet)
             self.last_bullet_time = current_time  # 更新上一次发射时间
+
+    def adjust_enemy_rates(self):
+        spawn_rate = BASE_ENEMY_SPAWN_RATE + self._adjust_enemy_rates_calculator()  # 举例：每得分增加0.001的刷新概率
+        shoot_rate = BASE_ENEMY_SHOOT_RATE + self._adjust_enemy_shoot_calculator()  # 举例：每得分增加0.001的开枪概率
+        return spawn_rate, shoot_rate
+
+    def _adjust_enemy_rates_calculator(self):
+        if self.score > 500:
+            return 0.7
+        return self.score * 0.001
+
+    def _adjust_enemy_shoot_calculator(self):
+        if self.score > 400:
+            return 0.7
+        return self.score * 0.001
+
+    def max_enemy_numbers(self):
+        return self.score // 15 + 5

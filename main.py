@@ -3,6 +3,7 @@ import random
 from player.Player import Player
 from bullet.Bullet import Bullet
 from enemy.Enemy import Enemy
+from constants import HEIGHT, WIDTH
 
 # 初始化
 pygame.init()
@@ -10,9 +11,7 @@ pygame.init()
 # 加载字体
 font = pygame.font.Font(None, 36)
 
-# 游戏窗口大小
-WIDTH = 800
-HEIGHT = 600
+
 
 # 颜色定义
 WHITE = (255, 255, 255)
@@ -81,7 +80,7 @@ while running:
                             restart = True
                         else:
                             # 重新开始游戏
-                            player.restart_game()
+                            player = Player(WIDTH // 2, HEIGHT - 10)
                             bullets = []
                             enemies = []
                             restart = True
@@ -103,17 +102,23 @@ while running:
                 player.shoot(bullets)
 
             # 生成敌机
-            enemy = Enemy.spawn()
-            if enemy and not player.enemies_paused:
-                enemies.append(enemy)
+            if len(enemies) < player.max_enemy_numbers():
+                spawn_rate, shoot_rate = player.adjust_enemy_rates()
+                enemy = Enemy.spawn(spawn_rate)
+                if enemy and not player.enemies_paused:
+                    enemies.append(enemy)
+                    if random.random() < shoot_rate:  # 控制发射子弹的概率，你可以根据需要调整
+                        enemy.shoot(bullets)
 
             # 碰撞检测与操作
             for bullet in bullets:
                 for enemy in enemies:
-                    if bullet.rect.colliderect(enemy.rect):
-                        enemies.remove(enemy)
-                        bullets.remove(bullet)
-                        player.score += 10  # 增加分数
+                    if bullet.type == player.type:
+                        offset = (enemy.rect.x - bullet.rect.x, enemy.rect.y - bullet.rect.y)
+                        if bullet.mask.overlap(enemy.mask, offset):
+                            enemies.remove(enemy)
+                            bullets.remove(bullet)
+                            player.score += 10  # 增加分数
 
         # 绘制游戏元素
         screen.fill(WHITE)
@@ -123,10 +128,12 @@ while running:
         # 移动子弹
         for bullet in bullets:
             if not player.bullets_paused:
-                bullet.move()
-            if bullet.rect.y < 0:
-                bullets.remove(bullet)
-            screen.blit(bullet.image, bullet.rect)
+                if bullet.type == player.type and bullet.move_up():
+                    bullets.remove(bullet)
+                if bullet.type != player.type and bullet.mov_down():
+                    bullets.remove(bullet)
+            # screen.blit(bullet.image, bullet.rect)
+            bullet.draw(screen)
 
         # 移动敌机
         for enemy in enemies:
@@ -137,6 +144,7 @@ while running:
             screen.blit(enemy.image, enemy.rect)
 
         player.collide_with_enemy(enemies)  # 检测碰撞
+        player.collide_with_bullet(bullets)
 
     else:
         screen.blit(pause_image, pause_rect)
